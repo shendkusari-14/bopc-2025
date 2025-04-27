@@ -7,6 +7,8 @@ import argparse
 import time
 from multiprocessing import Pool, TimeoutError
 from julia_curve import c_from_group
+from dataclasses import dataclass
+
 
 # Update according to your group size and number (see TUWEL)
 GROUP_SIZE   = 2
@@ -39,45 +41,72 @@ def compute_julia_set_sequential(xmin, xmax, ymin, ymax, im_width, im_height, c)
 
     return julia
 
-def compute_patch(task):
-    """Computes a single patch of the Julia set."""
-    x_start, y_start, patch_size, size, xmin, xmax, ymin, ymax, c = task
+
+@dataclass
+class PatchTask:
+    x_start: int
+    y_start: int
+    patch_size: int
+    size: int
+    xmin: float
+    xmax: float
+    ymin: float
+    ymax: float
+    c: complex
+
+def patch_worker(task: PatchTask):
+    #Computes a single patch of the Julia set
+    #x_start, y_start, patch_size, size, xmin, xmax, .ymin, ymax, c = task
     zabs_max = 10
     nit_max = 300
 
-    xwidth = xmax - xmin
-    yheight = ymax - ymin
+    # Maybe try different calculations?
+    xwidth = task.xmax - task.xmin
+    yheight = task.ymax - task.ymin
 
-    patch_width = min(patch_size, size - x_start)
-    patch_height = min(patch_size, size - y_start)
-
+    patch_width = min(task.patch_size, task.size - task.x_start)
+    patch_height = min(task.patch_size, task.size - task.y_start)
+    #print(patch_height)
     patch_result = np.zeros((patch_width, patch_height))
 
+    
+        
     for ix in range(patch_width):
         for iy in range(patch_height):
             nit = 0
-            zx = (x_start + ix) / size * xwidth + xmin
-            zy = (y_start + iy) / size * yheight + ymin
+            zx = (task.x_start + ix) / task.size * xwidth + task.xmin
+            zy = (task.y_start + iy) / task.size * yheight + task.ymin
             z = complex(zx, zy)
             while abs(z) <= zabs_max and nit < nit_max:
-                z = z**2 + c
+                z = z**2 + task.c
                 nit += 1
-            ratio = nit / nit_max
-            patch_result[ix, iy] = ratio
+            patch_result[ix, iy] = nit / nit_max
 
-    return (x_start, y_start, patch_result)
+
+    # Maybe log patch? (for checking)
+    # print(f'Patch done at ({task.x_start},{task.y_start})')
+
+
+
+    return (task.x_start, task.y_start, patch_result)
 
 
 def compute_julia_in_parallel(size, xmin, xmax, ymin, ymax, patch, nprocs, c):
     task_list = []
     for x in range(0, size, patch):
         for y in range(0, size, patch):
-            task_list.append((x, y, patch, size, xmin, xmax, ymin, ymax, c))
+            task_list.append(PatchTask(x, y, patch, size, xmin, xmax, ymin, ymax, c))
+
 
     julia_img = np.zeros((size, size))
 
+   
+   
     with Pool(processes=nprocs) as pool:
-        completed_patches = pool.map(compute_patch, task_list, chunksize=1)
+
+        # print("Starting pool map...")
+
+        completed_patches = pool.map(patch_worker, task_list, chunksize=1)
 
     for x_start, y_start, patch_data in completed_patches:
         w, h = patch_data.shape
