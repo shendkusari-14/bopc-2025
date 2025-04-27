@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import argparse
 
 class BenchmarkPlotHandler:
     def __init__(self, filepath: str, label: str):
@@ -106,6 +107,43 @@ class BenchmarkPlotHandler:
         plt.tight_layout()
         plt.show()
 
+    def plot_patch_runtime(self):
+        df_filtered_1 = self.df[(self.df["Problem Size"] == 850) & (self.df["Cores"] == 24)]
+        df_filtered = self.df[(self.df["Problem Size"] == 1000) & (self.df["Cores"] == 32)]
+
+        # Plot for 850
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(
+            df_filtered_1["Patch"],
+            df_filtered_1["Runtime (s)"],
+            marker="o",
+            linestyle="-"
+        )
+        ax.set_title("Runtime vs. Patch Size\n(Size=850, Cores=24)")
+        ax.set_xlabel("Patch Size")
+        ax.set_ylabel("Mean Runtime (s)")
+        ax.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+        # Plot for 1000
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(
+            df_filtered["Patch"],
+            df_filtered["Runtime (s)"],
+            marker="o",
+            linestyle="-"
+            )
+        ax.set_title("Runtime vs. Patch Size\n(Size=1000, Cores=32)")
+        ax.set_xlabel("Patch Size")
+        ax.set_ylabel("Mean Runtime (s)")
+        ax.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+
+
+
     def print_table(self):
         df_grouped = self.process_data().reset_index()
         df_grouped = df_grouped.rename(columns={
@@ -128,23 +166,81 @@ class BenchmarkPlotHandler:
         except ImportError:
             print(df_grouped.to_string(index=False))
 
-if __name__ == "__main__":
-    benchmark_cb_handler = BenchmarkPlotHandler("benchmark_cb.csv", "C = cb")
-    
-    # Plot and display each plot individually
-    benchmark_cb_handler.plot_runtime()  
-    benchmark_cb_handler.plot_speedup()  
-    benchmark_cb_handler.plot_efficiency()  
-    benchmark_cb_handler.plot_speedup_bar()  
-    
-    benchmark_cb_handler.print_table()
+    def print_patch_table(self, fixed_size=1000, fixed_cores=32):
+        
+        # Filter for the fixed size and core count
+            df_patch = self.df[
+                (self.df["Problem Size"] == fixed_size) &
+                (self.df["Cores"] == fixed_cores)
+         ]
 
-    benchmark_cs_handler = BenchmarkPlotHandler("benchmark_cs.csv", "C = cs")
+            df_patch = (
+                df_patch
+                .groupby("Patch")["Runtime (s)"]
+                .mean()
+                .reset_index()
+                .rename(columns={"Runtime (s)": "mean runtime (s)"})
+            )
+
+            df_patch["mean runtime (s)"] = df_patch["mean runtime (s)"].round(6)
+
+        # Prepare for printing
+            try:
+                from tabulate import tabulate
+                print(
+                    tabulate(
+                        df_patch,
+                        headers=["Patch Size", "Mean runtime (s)"],
+                        tablefmt="grid",
+                        showindex=False
+                    )
+                )
+            except ImportError:
+                print(df_patch.to_string(index=False))
+
+
+if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--patchmode",
+        action="store_true",
+        help="Only plot patch-size vs runtime from patch_cs.csv"
+        )
+    parser.add_argument(
+        "--file",
+        type=str,
+        default=None,
+        help="CSV file to load (defaults to benchmark_cs.csv or patch_cs.csv with --patchmode)"
+        )
+    args = parser.parse_args()
+    
+    
+    if args.patchmode:
+        handler = BenchmarkPlotHandler('patch_cs.csv', label='C = cs (patch mode)')
+        handler.plot_patch_runtime()
+        handler.print_patch_table()
+    else:
+    
+    
+    
+    
+        benchmark_cb_handler = BenchmarkPlotHandler("benchmark_cb.csv", "C = cb")
     
     # Plot and display each plot individually
-    benchmark_cs_handler.plot_runtime()  
-    benchmark_cs_handler.plot_speedup()  
-    benchmark_cs_handler.plot_efficiency()  
-    benchmark_cs_handler.plot_speedup_bar()  
+        benchmark_cb_handler.plot_runtime()  
+        benchmark_cb_handler.plot_speedup()  
+        benchmark_cb_handler.plot_efficiency()  
+        benchmark_cb_handler.plot_speedup_bar()  
     
-    benchmark_cs_handler.print_table()
+        benchmark_cb_handler.print_table()
+
+        benchmark_cs_handler = BenchmarkPlotHandler("benchmark_cs.csv", "C = cs")
+    
+    # Plot and display each plot individually
+        benchmark_cs_handler.plot_runtime()  
+        benchmark_cs_handler.plot_speedup()  
+        benchmark_cs_handler.plot_efficiency()  
+        benchmark_cs_handler.plot_speedup_bar()  
+        benchmark_cs_handler.print_table()
