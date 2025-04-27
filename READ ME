@@ -1,0 +1,13 @@
+To run the code you must give the following commands
+For CB:
+python3 julia_par.py --size 1020 --patch 22 --nprocs 4 --benchmark >> benchmark_cb.csv 
+
+For CS
+python3 julia_par.py --size 1020 --patch 22 --nprocs 4  >> benchmark_cs.csv
+
+To plot these results simply run python3 plot_handler.py
+
+For different patch sizes run the following command:
+python3 julia_par.py --size 850 --patch 9 --nprocs 24  >> patch_cs.csv  
+
+To plot patch sizes result simply run python plot_handler.py --patchmode
